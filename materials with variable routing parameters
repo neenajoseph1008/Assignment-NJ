@@ -1,0 +1,33 @@
+WITH variable_routings AS (
+    SELECT 
+        material_id,id
+    FROM workspace.default.routings
+    GROUP BY material_id,id
+    HAVING 
+        COUNT(DISTINCT setup_time_mins) > 1 OR
+        COUNT(DISTINCT cycle_time_sec) > 1 OR
+        COUNT(DISTINCT labour_time_sec) > 1
+),
+filtered_output AS (
+    SELECT *
+    FROM workspace.default.output
+    WHERE material IN (SELECT material_id FROM variable_routings)
+)
+SELECT 
+    p.production_order,
+    p.material,
+    p.plant,
+    p.line,
+    p.linetype,
+    p.order_start_ts,
+    p.order_end_ts,
+    p.cycletime AS actual_cycle_time,
+    r.cycle_time_sec AS planned_cycle_time,
+    ROUND(p.cycletime - r.cycle_time_sec, 2) AS variance_cycle_time
+FROM filtered_output AS p
+JOIN workspace.default.routings AS r
+    ON p.material = r.material_id
+   AND p.plant = r.plant_id
+   AND p.line = r.line
+   AND p.production_order = r.order_id
+ORDER BY p.production_order, p.material;
