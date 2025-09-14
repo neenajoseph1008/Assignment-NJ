@@ -1,0 +1,21 @@
+WITH material_groups AS (
+    SELECT 
+        CASE 
+            WHEN r.material_id IS NOT NULL AND o.material IS NOT NULL THEN 'In Both (Produced + Routing)'
+            WHEN r.material_id IS NOT NULL AND o.material IS NULL THEN 'Routing Only'
+            WHEN r.material_id IS NULL AND o.material IS NOT NULL THEN 'Output Only'
+        END AS category,
+        COALESCE(r.material_id, o.material) AS material_key
+    FROM workspace.default.routings r
+    FULL OUTER JOIN workspace.default.output o
+        ON r.material_id = o.material
+)
+SELECT 
+    category,
+    COUNT(DISTINCT material_key) AS material_count,
+    ROUND(
+        100.0 * COUNT(DISTINCT material_key) / SUM(COUNT(DISTINCT material_key)) OVER (), 
+        2
+    ) AS percentage_of_total
+FROM material_groups
+GROUP BY category;
